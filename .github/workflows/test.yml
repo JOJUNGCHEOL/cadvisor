@@ -16,15 +16,13 @@ jobs:
         go-version: ${{ matrix.go-versions }}
     - name: Checkout code
       uses: actions/checkout@v2
-    - name: Run presubmit checks
+    - name: Run make all
+      env:
+        GOLANG_VERSION: ${{ matrix.go-versions }}
       run: |
         source ${{ matrix.environment-variables }}
         if [[ "${BUILD_PACKAGES}" != "" ]]; then sudo apt-get update; sudo apt-get install ${BUILD_PACKAGES}; fi
-        make -e presubmit
-    - name: Run tests
-      env:
-        GOLANG_VERSION: ${{ matrix.go-versions }}
-      run: source ${{ matrix.environment-variables }} && make docker-test
+        make -e all
   test-integration:
     strategy:
       matrix:
