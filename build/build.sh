@@ -1,5 +1,4 @@
-#!/usr/bin/env bash
-
+#!/bin/bash
 # Copyright 2015 Google Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,11 +15,13 @@
 
 set -e
 
+GO_OS=${GO_OS:-"linux"}
+GO_ARCH=${GO_ARCH:-"amd64"}
 GO_FLAGS=${GO_FLAGS:-"-tags netgo"}    # Extra go flags to use in the build.
 BUILD_USER=${BUILD_USER:-"${USER}@${HOSTNAME}"}
 BUILD_DATE=${BUILD_DATE:-$( date +%Y%m%d-%H:%M:%S )}
 VERBOSE=${VERBOSE:-}
-GOARCH=$1
+OUTPUT_NAME_WITH_ARCH=${OUTPUT_NAME_WITH_ARCH:-"false"}
 
 repo_path="github.com/google/cadvisor"
 
@@ -50,15 +51,15 @@ if [ -n "$VERBOSE" ]; then
   echo "Building with -ldflags $ldflags"
 fi
 
-# Since github.com/google/cadvisor/cmd is a submodule, we must build from inside that directory
-output_file="$PWD/cadvisor"
-pushd cmd > /dev/null
-if [ -z "$GOARCH" ]
-then
-  go build ${GO_FLAGS} -ldflags "${ldflags}" -o "${output_file}" "${repo_path}/cmd"
-else
-  env GOOS=linux GOARCH=$GOARCH go build ${GO_FLAGS} -ldflags "${ldflags}" -o "${output_file}" "${repo_path}/cmd"
+mkdir -p "$PWD/_output"
+output_file="$PWD/_output/cadvisor"
+if [ "${OUTPUT_NAME_WITH_ARCH}" = "true" ] ; then
+  output_file="${output_file}-${version}-${GO_OS}-${GO_ARCH}"
 fi
+
+# Since github.com/google/cadvisor/cmd is a submodule, we must build from inside that directory
+pushd cmd > /dev/null
+  GOOS=${GO_OS} GOARCH=${GO_ARCH} go build ${GO_FLAGS} -ldflags "${ldflags}" -o "${output_file}" "${repo_path}/cmd"
 popd > /dev/null
 
 exit 0

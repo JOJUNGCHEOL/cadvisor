@@ -99,5 +99,6 @@ lint:
 
 clean:
 	@rm -f *.test cadvisor
+	@rm -rf _output/
 
 .PHONY: all build docker format release test test-integration lint presubmit tidy

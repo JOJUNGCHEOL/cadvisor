@@ -16,14 +16,16 @@
 
 set -e
 
-VERSION=$( git describe --tags --dirty --abbrev=14 | sed -E 's/-([0-9]+)-g/.\1+/' )
-# Only allow releases of tagged versions.
-TAGGED='^v[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc)\.?[0-9]*)?$'
-if [[ ! "$VERSION" =~ $TAGGED ]]; then
-  echo "Error: Only tagged versions are allowed for releases" >&2
-  echo "Found: $VERSION" >&2
-  exit 1
-fi
+#VERSION=$( git describe --tags --dirty --abbrev=14 | sed -E 's/-([0-9]+)-g/.\1+/' )
+## Only allow releases of tagged versions.
+#TAGGED='^v[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc)\.?[0-9]*)?$'
+#if [[ ! "$VERSION" =~ $TAGGED ]]; then
+  #echo "Error: Only tagged versions are allowed for releases" >&2
+  #echo "Found: $VERSION" >&2
+  #exit 1
+#fi
+
+VERSION="v0.44.1-test"
 
 # Don't include hostname with release builds
 if ! git_user="$(git config --get user.email)"; then
@@ -36,31 +38,20 @@ export BUILD_USER="$git_user"
 export BUILD_DATE=$( date +%Y%m%d ) # Release date is only to day-granularity
 export VERBOSE=true
 
-# Build the release binary with libpfm4 for docker container
-export GO_FLAGS="-tags=libpfm,netgo"
-build/build.sh
-
 # Build the docker image
 echo ">> building cadvisor docker image"
 gcr_tag="gcr.io/cadvisor/cadvisor:$VERSION"
-docker build -t $gcr_tag -f deploy/Dockerfile .
 
-# Build the release binary without libpfm4 to not require libpfm4 in runtime environment
-unset GO_FLAGS
-build/build.sh
+docker buildx rm cadvisor-builder || true
+docker buildx create --name cadvisor-builder
+docker buildx use cadvisor-builder
+docker buildx build --platform linux/amd64,linux/arm64 -f deploy/Dockerfile -t "${gcr_tag}" --progress plain --push .
+docker buildx rm cadvisor-builder
 
-echo
-echo "double-check the version below:"
-echo "VERSION=$VERSION"
-echo
-echo "To push docker image to gcr:"
-echo "docker push $gcr_tag"
-echo
-echo "Release info (copy to the release page):"
-echo
-echo "Docker Image: N/A"
-echo "gcr.io Image: $gcr_tag"
-echo
-sha256sum --tag cadvisor
+# Build binaries
+arches=('amd64' 'arm64')
+for arch in "${arches[@]}"; do
+  GO_ARCH="$arch" OUTPUT_NAME_WITH_ARCH="true" build/build.sh
+done
 
 exit 0
